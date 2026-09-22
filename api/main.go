@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"encoding/json"
@@ -14,7 +14,6 @@ type Answer struct {
 	Question string      `json:"question"`
 	Answer   interface{} `json:"answer"`
 }
-
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
