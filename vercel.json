@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/main.go": {
-      "runtime": "go"
-    }
-  }
-}
