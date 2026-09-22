@@ -1,4 +1,4 @@
-package main
+package handler // Имя пакета не main
 
 import (
 	"encoding/json"
@@ -15,6 +15,7 @@ type Answer struct {
 	Answer   interface{} `json:"answer"`
 }
 
+// Функция Handler экспортируется и имеет нужную сигнатуру
 func Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -33,7 +34,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("  [%d] %s: %v", i+1, a.Question, a.Answer)
 	}
 
-	// Возвращаем Яндексу подтверждение
 	resp := map[string]interface{}{
 		"status":   "ok",
 		"received": len(payload.Answers),
