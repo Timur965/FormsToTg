@@ -1,4 +1,4 @@
-package handler // Имя пакета не main
+package main
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type Answer struct {
 	Answer   interface{} `json:"answer"`
 }
 
-// Функция Handler экспортируется и имеет нужную сигнатуру
+
 func Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
