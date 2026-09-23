@@ -42,14 +42,32 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := make([]string, 0, len(raw))
-	for key, val := range raw {
-		parts = append(parts, fmt.Sprintf("%s=%v", key, val))
+	params, _ := raw["params"].(map[string]interface{})
+	if params == nil || len(params) == 0 {
+		log.Printf("Empty params, skipping")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok","skipped":true}`))
+		return
 	}
-	text := strings.Join(parts, "\n")
+
+	var lines []string
+	for key, val := range params {
+		if arr, ok := val.([]interface{}); ok {
+			// Массив — перебираем по порядку, выводим как есть
+			for _, item := range arr {
+				itemJSON, _ := json.Marshal(item)
+				lines = append(lines, string(itemJSON))
+			}
+		} else {
+			valJSON, _ := json.Marshal(val)
+			lines = append(lines, fmt.Sprintf("%s: %s", key, string(valJSON)))
+		}
+	}
+
+	text := strings.Join(lines, "\n")
 	log.Printf("Received: %s", text)
 
-	if tgToken != "" && tgChat != "" {
+	if tgToken != "" && tgChat != "" && text != "" {
 		if err := sendTelegram(r.Context(), text); err != nil {
 			log.Printf("Telegram send error: %v", err)
 		} else {
