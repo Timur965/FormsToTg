@@ -30,27 +30,26 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("📨 Сырой JSON: %s", string(bodyBytes))
+	log.Printf("📨 Длина тела: %d байт", len(bodyBytes))
 
-	// Парсим из прочитанных байтов
-	var payload WebhookPayload
-	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
-		log.Printf("Ошибка парсинга JSON: %v", err)
+	var raw map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+		log.Printf("Ошибка парсинга: %v. Сырой текст: %s", err, string(bodyBytes))
 		http.Error(w, "Parse error", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Получена анкета с %d ответами", len(payload.Answers))
-	for i, a := range payload.Answers {
-		log.Printf("[%d] %s: %v", i+1, a.Question, a.Answer)
+	for key, val := range raw {
+		log.Printf("🔑 Ключ '%s': %v", key, val)
+	}
+
+	if params, ok := raw["params"]; ok {
+		paramsJSON, _ := json.MarshalIndent(params, "", "  ")
+		log.Printf("📦 Содержимое params:\n%s", string(paramsJSON))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	resp := map[string]interface{}{
-		"status":   "ok",
-		"received": len(payload.Answers),
-	}
-	json.NewEncoder(w).Encode(resp)
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 func main() {
