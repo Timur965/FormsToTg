@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type WebhookPayload struct {
@@ -25,28 +27,24 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Ошибка чтения тела: %v", err)
+		log.Printf("Error reading body: %v", err)
 		http.Error(w, "Read error", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("📨 Длина тела: %d байт", len(bodyBytes))
-
 	var raw map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
-		log.Printf("Ошибка парсинга: %v. Сырой текст: %s", err, string(bodyBytes))
+		log.Printf("Parse error: %v", err)
 		http.Error(w, "Parse error", http.StatusBadRequest)
 		return
 	}
 
+	// Собираем все пары ключ=значение в одну строку
+	parts := make([]string, 0, len(raw))
 	for key, val := range raw {
-		log.Printf("🔑 Ключ '%s': %v", key, val)
+		parts = append(parts, fmt.Sprintf("%s=%v", key, val))
 	}
-
-	if params, ok := raw["params"]; ok {
-		paramsJSON, _ := json.MarshalIndent(params, "", "  ")
-		log.Printf("📦 Содержимое params:\n%s", string(paramsJSON))
-	}
+	log.Printf("Received: %s", strings.Join(parts, "\n"))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok"}`))
