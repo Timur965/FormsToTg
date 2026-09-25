@@ -35,17 +35,20 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var raw map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
-		log.Printf("Parse error: %v", err)
-		http.Error(w, "Parse error", http.StatusBadRequest)
-		return
+	dec := json.NewDecoder(bytes.NewReader(bodyBytes))
+	var parts []string
+
+	t, _ := dec.Token()
+	if delim, ok := t.(json.Delim); ok && delim == '{' {
+		for dec.More() {
+			keyToken, _ := dec.Token()
+			key := keyToken.(string)
+			var value interface{}
+			dec.Decode(&value)
+			parts = append(parts, fmt.Sprintf("%s=%v", key, value))
+		}
 	}
 
-	parts := make([]string, 0, len(raw))
-	for key, val := range raw {
-		parts = append(parts, fmt.Sprintf("%s=%v", key, val))
-	}
 	text := strings.Join(parts, "\n")
 	log.Printf("Received: %s", text)
 
