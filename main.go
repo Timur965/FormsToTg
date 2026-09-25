@@ -44,12 +44,16 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			keyToken, _ := dec.Token()
 			key := keyToken.(string)
 			var value interface{}
+			var valStr string
 			dec.Decode(&value)
-			parts = append(parts, fmt.Sprintf("%s=%v", key, value))
+			key = strings.ReplaceAll(key, "\n", "")
+			valStr = fmt.Sprintf("%v", value)
+			valStr = strings.ReplaceAll(valStr, "\n", "")
+			parts = append(parts, fmt.Sprintf("%s = %v", key, valStr))
 		}
 	}
 
-	text := strings.Join(parts, "\n")
+	text := strings.Join(parts, "\n\n")
 	log.Printf("Received: %s", text)
 
 	if tgToken != "" && tgChat != "" {
