@@ -12,10 +12,24 @@ import (
 	"strings"
 )
 
-var (
-	tgToken = os.Getenv("TG_BOT_TOKEN")
-	tgChat  = os.Getenv("TG_CHAT_ID")
-)
+var tgToken = os.Getenv("TG_BOT_TOKEN")
+var recipients = parseRecipients(os.Getenv("TG_RECIPIENTS"))
+
+func parseRecipients(s string) map[string]string {
+	result := make(map[string]string)
+	pairs := strings.Split(s, ",")
+	for _, pair := range pairs {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) == 2 {
+			name := strings.TrimSpace(kv[0])
+			id := strings.TrimSpace(kv[1])
+			if name != "" && id != "" {
+				result[name] = id
+			}
+		}
+	}
+	return result
+}
 
 type tgMessage struct {
 	ChatID string `json:"chat_id"`
@@ -25,6 +39,32 @@ type tgMessage struct {
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	toParam := r.URL.Query().Get("to")
+	var targetIDs []string
+
+	if toParam == "" {
+		for _, id := range recipients {
+			targetIDs = append(targetIDs, id)
+		}
+	} else {
+		names := strings.Split(toParam, ",")
+		for _, name := range names {
+			name = strings.TrimSpace(name)
+			if id, ok := recipients[name]; ok {
+				targetIDs = append(targetIDs, id)
+			} else {
+				log.Printf("Unknown recipient: %s", name)
+			}
+		}
+	}
+
+	if len(targetIDs) == 0 {
+		log.Printf("No recipients found for: %s", toParam)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"no_recipients"}`))
 		return
 	}
 
@@ -44,23 +84,22 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 			keyToken, _ := dec.Token()
 			key := keyToken.(string)
 			var value interface{}
-			var valStr string
 			dec.Decode(&value)
+			valStr := fmt.Sprintf("%v", value)
 			key = strings.ReplaceAll(key, "\n", "")
-			valStr = fmt.Sprintf("%v", value)
 			valStr = strings.ReplaceAll(valStr, "\n", "")
 			parts = append(parts, fmt.Sprintf("%s = %v", key, valStr))
 		}
 	}
 
 	text := strings.Join(parts, "\n\n")
-	log.Printf("Received: %s", text)
+	log.Printf("Received (to=%s): %s", toParam, text)
 
-	if tgToken != "" && tgChat != "" {
-		if err := sendTelegram(r.Context(), text); err != nil {
-			log.Printf("Telegram send error: %v", err)
+	for _, chatID := range targetIDs {
+		if err := sendTelegram(r.Context(), chatID, text); err != nil {
+			log.Printf("Telegram send error to %s: %v", chatID, err)
 		} else {
-			log.Printf("Telegram: sent")
+			log.Printf("Telegram: sent to %s", chatID)
 		}
 	}
 
@@ -68,9 +107,9 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
-func sendTelegram(ctx context.Context, text string) error {
+func sendTelegram(ctx context.Context, chatID, text string) error {
 	msg := tgMessage{
-		ChatID: tgChat,
+		ChatID: chatID,
 		Text:   text,
 	}
 
